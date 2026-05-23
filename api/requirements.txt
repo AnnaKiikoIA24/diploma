@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+psycopg2
+PyJWT
+python-dotenv
+pwdlib[argon2]
+python-multipart
+requests
+google-auth
+meilisearch
+numpy
+
+# python -m venv .venv
+# .venv\Scripts\activate
+# pip install -r requirements.txt

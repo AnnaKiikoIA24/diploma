@@ -1,0 +1,13 @@
+@media (max-width: 768px) {
+  .hide-label .p-button-label {
+    display: none;
+  }
+  .hide-on-mobile {
+    display: none;
+  }
+}
+
+.p-menubar .p-menuitem-link {
+  border-radius: 10px;    /* закруглені кути */
+  padding: 0.5rem 0.5rem;  /* більше простору */
+}

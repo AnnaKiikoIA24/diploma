@@ -1,0 +1,53 @@
+.card-pastel-blue {
+  background: #b3d4ac;
+  /* ніжно-блакитний */
+  color: #333;
+  margin: 0px;
+}
+
+.card-pastel-green {
+  background: #B2DFDB;
+  /* м’ятний */
+  color: #333;
+  margin: 0px;
+}
+
+.card-pastel-pink {
+  background: #F7CAC9;
+  /* ніжно-рожевий */
+  color: #333;
+  margin: 0px;
+}
+
+.p-card .p-card-title,
+.p-card .p-card-subtitle {
+  color: #333;
+}
+
+.chart-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 450px;
+  max-height: 350px; /* не квадрат */
+}
+
+.chart-wrapper canvas {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.p-datatable thead th {
+  background: transparent;
+  border-bottom: 2px solid #B2DFDB; /* м’ятний акцент */
+  color: #333;
+  font-weight: 600;
+}
+
+.panel-statistic .p-panel-header {
+  background: linear-gradient(90deg, #F7CAC9, #FFFACD);
+  /* linear-gradient(90deg, #AEC6CF, #E0F7FA); */
+  color: #333;
+  font-weight: 600;
+} 
+

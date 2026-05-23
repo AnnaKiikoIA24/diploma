@@ -1,0 +1,48 @@
+.inputnumber-center .p-inputnumber-input {
+  text-align: center;
+}
+
+.div-card {
+  background-color: rgb(255, 250, 245);
+  cursor: pointer;
+}
+
+.div-card:hover {
+  background-color: cornsilk;
+}
+
+@media (max-width: 768px) {
+  .hide-label .p-button-label {
+    display: none;
+  }
+  .hide-on-mobile {
+    display: none;
+  }
+}
+
+.star-spacing {
+  display: inline-block;   /* важливо */
+  margin-right: 8px;       /* відстань між зірками */
+  font-size: 1rem;       /* розмір */
+}
+
+.no-border-panel {
+  box-shadow: none !important;   /* прибирає тінь */
+  border: none !important; 
+}
+.no-border-panel .p-panel-content {
+  border: none !important;       /* прибирає рамку контенту */
+}
+
+.no-border-panel .p-panel-header {
+  background: linear-gradient(90deg, #F7CAC9, #FFFACD);
+  color: #333;
+  font-weight: 600;
+  padding-right: 4px;
+  margin-right: 4px;
+} 
+
+.p-message {
+  font-size: 0.8rem;
+}
+

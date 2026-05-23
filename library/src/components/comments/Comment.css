@@ -1,0 +1,9 @@
+.comment-card {
+  border-top: 1px solid #B2DFDB;   /* пастельна м’ятна рамка */
+  box-shadow: none !important;   /* прибирає тінь */
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;  
+  padding-top: 5px;
+  margin: 0px;
+}
