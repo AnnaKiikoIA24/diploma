@@ -1,0 +1,12 @@
+.nsm7Bb-HzV7m-LgbsSe-BPrWId {
+  visibility: hidden; /* ховаємо оригінальний текст */
+  position: relative;
+}
+
+.nsm7Bb-HzV7m-LgbsSe-BPrWId::after {
+  content: " Вхід через Google Account"; 
+  visibility: visible;
+  position: absolute;
+  left: 0;
+  top: 0;
+} 

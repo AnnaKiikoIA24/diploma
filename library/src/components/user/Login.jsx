@@ -9,6 +9,7 @@ import { AppContext } from "../context/AppContext";
 import { classNames } from 'primereact/utils';
 import { loginUser, googleUser } from "../../utils/user";
 import { notify } from "../notify/notify";
+import './Login.css';
 
 Login.propTypes = {
   onVisible: PropTypes.func,
@@ -149,14 +150,11 @@ export default function Login ({onVisible, onRegister}) {
           </Divider>
         </div>
         <div className="field flex justify-content-center py-1">
-          <GoogleLogin className="w-14rem" 
+          <GoogleLogin 
             onSuccess={handleGoogleSuccess} 
             onError={() => notify.error(toast, 'Помилка Google авторизації', 'Авторизація не пройдена') } />
         </div>   
 
-        {/* <div className="w-full">
-          <Divider layout="horizontal" className="flex" />
-        </div>                */}
         <div className="w-full flex justify-content-center py-2">
           <Button label="Зареєструватись" icon="pi pi-user-plus" 
             severity="warning" className="w-14rem" 

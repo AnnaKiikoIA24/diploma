@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 
 # Моделі
