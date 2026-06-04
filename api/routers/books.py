@@ -11,12 +11,18 @@ import os
 
 @app.post("/api/meilisearch/index-books")
 async def index_books(
-  conn: Annotated[psycopg2.connect, Depends(get_db)]  
+  conn: Annotated[psycopg2.connect, Depends(get_db)],
+  currentUser: Annotated[UserInDB, Depends(get_current_user)]
 ):
   """
   Переіндексація книг в контейнері Meilisearch
   """    
   print("Meilisearch: Index Books")  
+  # Доступ доступний лише для користувача з правами адміністратора
+  if currentUser.role == False:
+    raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, 
+                        detail="Доступ до переіндексації доступний лише для користувача з правами адміністратора")   
+    
   meili = Client(os.getenv("MEILISEARCH_URL") , "MASTER_KEY")
   try:
     # Перевіряємо, чи існує індекс
@@ -53,19 +59,24 @@ async def index_books(
   
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка переіндексації даних: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка переіндексації даних: " + str(e))
 
 @app.get("/api/meilisearch/search")
 async def search_books(searchStr: str):
   """
-  Пошук книг за назвою та ключовими словами в контейнері Meilisearch
+  Пошук книг за назвою, автором та ключовими словами в контейнері Meilisearch
   """    
   print("Meilisearch: Search Books") 
-  meili = Client(os.getenv("MEILISEARCH_URL") , "MASTER_KEY")   
-  results = meili.index("books").search(searchStr, {
-    "limit": 20,
-    "attributesToHighlight": ["book_name", "key_words", "authors"]
-  })
-  return results["hits"]
+  try:
+    meili = Client(os.getenv("MEILISEARCH_URL") , "MASTER_KEY")   
+    results = meili.index("books").search(searchStr, {
+      "limit": 20,
+      "attributesToHighlight": ["book_name", "key_words", "authors"]
+      })
+    return results["hits"]
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка пошуку даних: " + str(e))
 
 @app.get("/api/books")
 def get_books(conn: Annotated[psycopg2.connect, Depends(get_db)],
@@ -157,7 +168,8 @@ def get_books(conn: Annotated[psycopg2.connect, Depends(get_db)],
   
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки даних з БД: " + str(e))
-
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка вибірки даних: " + str(e))
 
 @app.get("/api/books/{id}")
 def get_book(
@@ -210,7 +222,8 @@ def get_book(
     )
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки даних з БД: " + str(e))
-    
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка вибірки даних: " + str(e))   
 
 @app.post("/api/books")
 def create_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
@@ -221,6 +234,10 @@ def create_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
   """    
   print("Create New Book")
 
+  # Доступ доступний лише для користувача з правами адміністратора
+  if currentUser.role == False:
+    raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, 
+                        detail="Доступ до додавання книги доступний лише для користувача з правами адміністратора")  
   coverImgData: bytes = None
   mimeType: str = None
   if book.bookCover != None:
@@ -264,6 +281,8 @@ def create_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     return book        
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вставки до БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка створення нової книги: " + str(e))  
 
 @app.put("/api/books")
 def update_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
@@ -273,6 +292,10 @@ def update_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
   Редагування iснуючої книги
   """    
   print("Update Book")
+  # Доступ доступний лише для користувача з правами адміністратора
+  if currentUser.role == False:
+    raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, 
+                        detail="Доступ до редагування книги доступний лише для користувача з правами адміністратора")    
   try:
     cursor = conn.cursor()
     # Перевiрка, що книга існує в БД
@@ -374,6 +397,8 @@ def update_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     return book        
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка редагування даних в БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка редагування книги: " + str(e))  
     
 
 @app.delete("/api/books/{id}")
@@ -384,6 +409,10 @@ def delete_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
   Видалення iснуючої книги
   """    
   print("Delete Book")
+  # Доступ доступний лише для користувача з правами адміністратора
+  if currentUser.role == False:
+    raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, 
+                        detail="Доступ до видалення книги доступний лише для користувача з правами адміністратора")  
   try:
     cursor = conn.cursor()
     # Перевiрка, що книга існує в БД
@@ -405,7 +434,9 @@ def delete_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     conn.close()
 
   except psycopg2.Error as e: 
-    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка редагування даних в БД: " + str(e))      
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка видалення даних в БД: " + str(e))  
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка видалення книги: " + str(e))      
 
 @app.post("/api/filters/books")
 def get_filters_books(
@@ -579,6 +610,8 @@ def get_filters_books(
   
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки даних з БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка вибірки даних: " + str(e))  
 
 
 

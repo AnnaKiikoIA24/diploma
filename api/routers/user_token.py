@@ -34,10 +34,10 @@ def get_password_hash(password) -> str:
 def generate_jwt_token(data: dict, key: str, expiresDelta: timedelta | None = None) -> str:
     toEncode = data.copy()
     if expiresDelta:
-        expire = datetime.now(timezone.utc) + expiresDelta
+      expire = datetime.now(timezone.utc) + expiresDelta
     else:
-        # За замовчуванням термін 30 хвилин від поточної дати/часу
-        expire = datetime.now(timezone.utc) + timedelta(minutes = 30)
+      # За замовчуванням термін 30 хвилин від поточної дати/часу
+      expire = datetime.now(timezone.utc) + timedelta(minutes = 30)
     toEncode.update({"exp": expire})
     encodedJwt = jwt.encode(toEncode, key, algorithm = os.getenv("ALGORITHM"))
     return encodedJwt
@@ -129,23 +129,28 @@ async def verify_jwt_token(token: str, request) -> str:
 # Функція отримання інформації про користувача з БД
 def get_user(conn, username: str) -> UserInDB:
   # отримуємо користувача за username
-  cursor = conn.cursor()
-  sql = """SELECT user_id, password, first_name, last_name, role, external_account,
-          (select count(*) from link_users_books where ref_user_id = u.user_id) as favorites_cnt
-      FROM users u WHERE login = %s """
-  cursor.execute(sql, (username,))
-  row = cursor.fetchone() 
-  cursor.close() 
+  try:
+    cursor = conn.cursor()
+    sql = """SELECT user_id, password, first_name, last_name, role, external_account,
+            (select count(*) from link_users_books where ref_user_id = u.user_id) as favorites_cnt
+        FROM users u WHERE login = %s """
+    cursor.execute(sql, (username,))
+    row = cursor.fetchone() 
+    cursor.close() 
 
-  if row == None:  
-      return None
-  
-  userId, hashedPassword, firstName, lastName, role, externalAccount, favoritesCnt = row 
-  return UserInDB(userId = userId, username = username, 
-                  firstName = firstName, lastName = lastName, 
-                  role = role, externalAccount= externalAccount, 
-                  favoritesCnt=favoritesCnt,
-                  hashedPassword = hashedPassword)
+    if row == None:  
+        return None
+    
+    userId, hashedPassword, firstName, lastName, role, externalAccount, favoritesCnt = row 
+    return UserInDB(userId = userId, username = username, 
+                    firstName = firstName, lastName = lastName, 
+                    role = role, externalAccount= externalAccount, 
+                    favoritesCnt=favoritesCnt,
+                    hashedPassword = hashedPassword)
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка отримання даних про користувача з БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка отримання даних про користувача: " + str(e))    
 
 # Функція аутентифікації користувача в БД за його логіном та паролем
 def authenticate_user(conn, username: str, password: str):
@@ -253,26 +258,31 @@ async def google_auth(token: GoogleTokenData,
   dbUser = get_user(conn, username)
   # Створення нового користувача в БД, якщо він не знайдений
   if not dbUser:
-    print("Створення нового користувача")
-    cursor = conn.cursor()
-    sql = """INSERT INTO users(
-            login, first_name, role, external_account)
-            VALUES (%s, %s, %s, %s)"""
-    cursor.execute(sql, (username, firstName, False, True))
-    conn.commit() 
+    try:
+      print("Створення нового користувача")
+      cursor = conn.cursor()
+      sql = """INSERT INTO users(
+              login, first_name, role, external_account)
+              VALUES (%s, %s, %s, %s)"""
+      cursor.execute(sql, (username, firstName, False, True))
+      conn.commit() 
 
-    # отримуємо поточне значення user_id з відповідної послідовності
-    sql = """SELECT currval('users_user_id_seq')"""
-    cursor.execute(sql)
-    userId = cursor.fetchone()  
-    cursor.close()
-    conn.close()
-    
-    dbUser = UserInDB(userId = userId, 
-                    username = username, 
-                    firstName = firstName, 
-                    role = False,
-                    externalAccount = True)
+      # отримуємо поточне значення user_id з відповідної послідовності
+      sql = """SELECT currval('users_user_id_seq')"""
+      cursor.execute(sql)
+      userId, = cursor.fetchone()  
+      cursor.close()
+      conn.close()
+      
+      dbUser = UserInDB(userId = userId, 
+                      username = username, 
+                      firstName = firstName, 
+                      role = False,
+                      externalAccount = True)
+    except psycopg2.Error as e: 
+      raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка створення нового користувача з БД: " + str(e))
+    except Exception as e:
+      raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка створення нового користувача: " + str(e))   
   
   # Якщо знайдений локальний користувач з таким логіном
   if not dbUser.externalAccount:
@@ -282,16 +292,19 @@ async def google_auth(token: GoogleTokenData,
       headers={"WWW-Authenticate": "Bearer"}
     )
   
-  # Створюємо access-токен
-  accessToken = create_access_token(dbUser.username) 
-  # Створюємо та зберігаємо в cookie refresh-token    
-  create_refresh_token_data(response, dbUser.username)
+  try:
+    # Створюємо access-токен
+    accessToken = create_access_token(dbUser.username) 
+    # Створюємо та зберігаємо в cookie refresh-token    
+    create_refresh_token_data(response, dbUser.username)
 
-  return UserOutData(
-    # приводимо user класу UserInDb до базового класу
-    user = User(**dbUser.model_dump(exclude={"hashedPassword"})),
-    token = accessToken)
-
+    return UserOutData(
+      # приводимо user класу UserInDb до базового класу
+      user = User(**dbUser.model_dump(exclude={"hashedPassword"})),
+      token = accessToken)
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка створення токену: " + str(e))   
+  
 # ---------------------------------------------------   
 # Cтворення нового користувача 
 @app.post("/api/users") 
@@ -306,43 +319,51 @@ def create_user(response: Response,
   Створення нового користувача
   """    
   print("Create New User")
-
-  # отримуємо користувача за login 
-  sql = """SELECT user_id  
-          FROM users  
-          WHERE login = %s"""  
-  cursor = conn.cursor()
-  cursor.execute(sql, (username,))
-  row = cursor.fetchone()   
-
+  try:
+    # отримуємо користувача за login 
+    sql = """SELECT user_id  
+            FROM users  
+            WHERE login = %s"""  
+    cursor = conn.cursor()
+    cursor.execute(sql, (username,))
+    row = cursor.fetchone()   
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка отримання даних про користувача з БД: " + str(e))
+    
   if row != None:
     raise HTTPException(
       status_code=status.HTTP_409_CONFLICT,
       detail="Користувач " + username + " уже існує!",
       headers={"WWW-Authenticate": "Bearer"}
     )
-  
-  sql = """INSERT INTO users(
-        login, password, first_name, last_name, role, external_account)
-        VALUES (%s, %s, %s, %s, %s, %s)"""
-  cursor.execute(sql, (username, get_password_hash(password), firstName, lastName, role, False))
-  conn.commit() 
+  try:
+    sql = """INSERT INTO users(
+          login, password, first_name, last_name, role, external_account)
+          VALUES (%s, %s, %s, %s, %s, %s)"""
+    cursor.execute(sql, (username, get_password_hash(password), firstName, lastName, role, False))
+    conn.commit() 
 
-  # отримуємо поточне значення user_id з відповідної послідовності
-  sql = """SELECT currval('users_user_id_seq')"""
-  cursor.execute(sql)
-  userId, = cursor.fetchone()  
-  cursor.close()
-  conn.close()
+    # отримуємо поточне значення user_id з відповідної послідовності
+    sql = """SELECT currval('users_user_id_seq')"""
+    cursor.execute(sql)
+    userId, = cursor.fetchone()  
+    cursor.close()
+    conn.close()
+    
+    newUser = User(userId=userId, username=username, 
+                  firstName=firstName, lastName=lastName, 
+                  role=role, externalAccount=False)
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вставки даних про користувача з БД: " + str(e))
   
-  newUser = User(userId=userId, username=username, 
-                firstName=firstName, lastName=lastName, 
-                role=role, externalAccount=False)
-  # Створюємо access-токен
-  accessToken = create_access_token(username)
-  # Створюємо та зберігаємо в cookie refresh-token    
-  create_refresh_token_data(response, username)
-  return UserOutData(user=newUser, token=accessToken)
+  try:
+    # Створюємо access-токен
+    accessToken = create_access_token(username)
+    # Створюємо та зберігаємо в cookie refresh-token    
+    create_refresh_token_data(response, username)
+    return UserOutData(user=newUser, token=accessToken)
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка створення токену: " + str(e))   
 
 # ---------------------------------------------------   
 # Зміна даних користувача
@@ -367,55 +388,68 @@ def edit_user(response: Response,
       status_code=status.HTTP_412_PRECONDITION_FAILED,
       detail="Cтарий пароль не підтверджений!",
       headers={"WWW-Authenticate": "Bearer"}) 
-      
-  cursor = conn.cursor()
-  # отримуємо користувача за новим login 
-  sql = """SELECT user_id  
-          FROM users  
-          WHERE login = %s AND user_id <> %s """  
-  cursor = conn.cursor()
-  cursor.execute(sql, (username, userId))
-  row = cursor.fetchone()   
+  
+  try: 
+    cursor = conn.cursor()
+    # отримуємо користувача за новим login 
+    sql = """SELECT user_id  
+            FROM users  
+            WHERE login = %s AND user_id <> %s """  
+    cursor = conn.cursor()
+    cursor.execute(sql, (username, userId))
+    row = cursor.fetchone()   
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка отримання даних про користувача з БД: " + str(e))    
+    
   if row != None:
       raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail="З логіном " + username + " вже існує інший користувач!",
         headers={"WWW-Authenticate": "Bearer"})
-      
-  # отримуємо користувача за id 
-  sql = f"SELECT role FROM users WHERE user_id = {userId}" 
-  cursor.execute(sql)
-  row = cursor.fetchone()   
+  
+  try:  
+    # отримуємо користувача за id 
+    sql = f"SELECT role FROM users WHERE user_id = {userId}" 
+    cursor.execute(sql)
+    row = cursor.fetchone()  
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка отримання даних про користувача з БД: " + str(e))
+       
   # якщо не знайдений, відправляємо статусний код і повідомлення про помилку 
   if row == None:  
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
       detail="Користувач з userId=" + userId + " не знайдений!",
       headers={"WWW-Authenticate": "Bearer"})        
+  try:
+    role, = row   
+    # якщо користувач знайдений, змінюємо його дані і відправляємо назад клієнту 
+    sql = """UPDATE users 
+    SET login = %s, 
+        password = %s,
+        first_name = %s,
+        last_name = %s
+    WHERE user_id = %s"""
+    cursor.execute(sql, (username, get_password_hash(password), firstName, lastName, userId))
+    conn.commit()
+    cursor.close()
+    conn.close()
+        
+    editedUser = User(userId=userId, username=username, 
+                    firstName=firstName, lastName=lastName, 
+                    role=role, favoritesCnt=favoritesCnt)
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка оновлення даних про користувача з БД: " + str(e))   
+  
+  try: 
+    # Створюємо access-токен
+    accessToken = create_access_token(username)
+    # Створюємо та зберігаємо в cookie refresh-token    
+    create_refresh_token_data(response, username)
 
-  role, = row   
-  # якщо користувач знайдений, змінюємо його дані і відправляємо назад клієнту 
-  sql = """UPDATE users 
-  SET login = %s, 
-      password = %s,
-      first_name = %s,
-      last_name = %s
-  WHERE user_id = %s"""
-  cursor.execute(sql, (username, get_password_hash(password), firstName, lastName, userId))
-  conn.commit()
-  cursor.close()
-  conn.close()
-      
-  editedUser = User(userId=userId, username=username, 
-                  firstName=firstName, lastName=lastName, 
-                  role=role, favoritesCnt=favoritesCnt)
-  # Створюємо access-токен
-  accessToken = create_access_token(username)
-  # Створюємо та зберігаємо в cookie refresh-token    
-  create_refresh_token_data(response, username)
-
-  return UserOutData(user=editedUser, token=accessToken)
-
+    return UserOutData(user=editedUser, token=accessToken)
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка створення токену: " + str(e))   
 # ---------------------------------------------------   
 # видалення користувача
 @app.delete("/api/users/{userId}") 
@@ -425,11 +459,18 @@ def delete_user(userId,
   """
   Видалення користувача
   """
-  cursor = conn.cursor()
-  # отримуємо користувача за id 
-  sql = f"SELECT user_id FROM users WHERE user_id = {userId}" 
-  cursor.execute(sql)
-  row = cursor.fetchone()   
+  # Доступ доступний лише для користувача з правами адміністратора
+  if currentUser.role == False and currentUser.userId != userId:
+    raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, 
+                        detail="Доступ до видалення іншого користувача доступний лише для користувача з правами адміністратора")    
+  try:
+    cursor = conn.cursor()
+    # отримуємо користувача за id 
+    sql = f"SELECT user_id FROM users WHERE user_id = {userId}" 
+    cursor.execute(sql)
+    row = cursor.fetchone()
+  except psycopg2.Error as e: 
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка отримання даних про користувача з БД: " + str(e))       
 
   # якщо не знайдений, відправляємо статусний код і повідомлення про помилку 
   if row == None:  

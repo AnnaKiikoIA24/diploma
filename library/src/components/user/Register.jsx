@@ -77,6 +77,7 @@ export default function Register ({onVisible, toastRef}) {
           <Controller name="username" control={control} 
             rules={{ 
               required: "Введіть логін користувача", 
+              maxLength: { value: 25, message: "Довжина логіну не більше 25 символів" },
               validate: (value) => {
                 const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!re.test(value))

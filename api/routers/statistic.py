@@ -179,5 +179,7 @@ def get_books(
     }
   
   except psycopg2.Error as e: 
-    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки даних з БД: " + str(e))
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки статистичних даних з БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка вибірки статистичних  даних: " + str(e))    
 

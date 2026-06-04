@@ -69,7 +69,8 @@ def mark_read_unread(currentUser: Annotated[UserInDB, Depends(get_current_user)]
     return  nowDateTime if row == None else None
   except psycopg2.Error as e: 
     raise HTTPException(status_code = 600, detail="Помилка вставки до БД інформації про читання: " + str(e))
-      
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка додавання інформації про читання: " + str(e))        
 
 @app.post("/api/reading/{bookId}/{isRead}")
 def mark_read_unread(currentUser: Annotated[UserInDB, Depends(get_current_user)],
@@ -112,5 +113,7 @@ def mark_read_unread(currentUser: Annotated[UserInDB, Depends(get_current_user)]
 
     return  nowDateTime if isRead == 1 else None
   except psycopg2.Error as e: 
-    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка оновлення БД: " + str(e))
+    raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка оновлення інформації про читання в БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка оновлення інформації про читання: " + str(e))    
     

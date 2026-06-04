@@ -61,7 +61,9 @@ def get_ratings(
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
       detail="Помилка вибірки даних з БД: " + str(e))
-
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка вибірки даних: " + str(e))  
+  
 # Додати відгук
 @app.post("/api/ratings")
 def create_rating(
@@ -97,6 +99,8 @@ def create_rating(
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
       detail="Помилка додавання відгуку: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка додавання відгуку: " + str(e))      
 
 # Редагувати відгук
 @app.put("/api/ratings")
@@ -141,7 +145,8 @@ def update_rating(
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
       detail="Помилка редагування відгуку: " + str(e))
-
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка редагування відгуку: " + str(e))  
 
 # Видалити відгук
 @app.delete("/api/ratings/{ratingId}/{bookId}")
@@ -184,4 +189,6 @@ def delete_rating(
   except psycopg2.Error as e:
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Помилка вибірки даних з БД: " + str(e))
+      detail="Помилка видалення відгуку з БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка видалення відгуку: " + str(e))      

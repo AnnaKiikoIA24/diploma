@@ -44,7 +44,6 @@ def add_favourite(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     cursor.close()
     conn.close()
 
-
     return True #cntFavorites
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вставки до БД: " + str(e))
