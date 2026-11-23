@@ -220,6 +220,8 @@ def get_book(
           keyWords=keyWords,
           source=source
     )
+  except HTTPException:
+    raise
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка вибірки даних з БД: " + str(e))
   except Exception as e:
@@ -395,6 +397,8 @@ def update_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     conn.close()
 
     return book        
+  except HTTPException:
+    raise
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка редагування даних в БД: " + str(e))
   except Exception as e:
@@ -433,6 +437,8 @@ def delete_book(currentUser: Annotated[UserInDB, Depends(get_current_user)],
     cursor.close()
     conn.close()
 
+  except HTTPException:
+    raise
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка видалення даних в БД: " + str(e))  
   except Exception as e:

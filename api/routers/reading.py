@@ -112,8 +112,44 @@ def mark_read_unread(currentUser: Annotated[UserInDB, Depends(get_current_user)]
     conn.commit() 
 
     return  nowDateTime if isRead == 1 else None
+  except HTTPException:
+    raise
   except psycopg2.Error as e: 
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="Помилка оновлення інформації про читання в БД: " + str(e))
   except Exception as e:
     raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка оновлення інформації про читання: " + str(e))    
+
+@app.put("/api/reading/{bookId}/progress")
+def update_reading_progress(
+  currentUser: Annotated[UserInDB, Depends(get_current_user)],
+  conn: Annotated[psycopg2.connect, Depends(get_db)],
+  bookId: str,
+  payload: ReadingProgress
+):
+  """
+  Оновлення поточного прогресу читання книги (у сторінках та відсотках)
+  """
+  try:
+    safe_current_page = payload.current_page
+    progress_percent = round((payload.current_page / payload.total_pages) * 100, 2)
+
+    cursor = conn.cursor()
+    sql = """UPDATE reading
+             SET current_page = %s, total_pages = %s, progress_percent = %s
+             WHERE ref_book_id = %s AND ref_user_id = %s"""
+    cursor.execute(sql, (safe_current_page, payload.total_pages or 0, progress_percent, bookId, currentUser.userId))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {
+      "bookId": bookId,
+      "currentPage": safe_current_page,
+      "totalPages": payload.total_pages or 0,
+      "progressPercent": progress_percent
+    }
+  except psycopg2.Error as e:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Помилка оновлення прогресу в БД: " + str(e))
+  except Exception as e:
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка оновлення прогресу читання: " + str(e))
     

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uuid
 from datetime import datetime
 
@@ -9,8 +9,8 @@ class User(BaseModel):
   username: str
   firstName: str
   lastName: str | None = None
-  role: bool | None = False,
-  externalAccount: bool | None = False,
+  role: bool | None = False
+  externalAccount: bool | None = False
   favoritesCnt: int | None = 0
 
 class UserInDB(User):
@@ -61,7 +61,7 @@ class Filters(BaseModel):
   languages: list[int] | None = None
   authors: list[int] | None = None
   genres: list[int] | None = None
-  rating: int | None = 0,
+  rating: int | None = 0
   isRead: int | None = -1
 
 class Favorite(BaseModel):
@@ -80,3 +80,7 @@ class Rating(BaseModel):
 class RatingComment(Rating):
   owner: bool = False
   userName: str
+
+class ReadingProgress(BaseModel):
+  current_page: int = Field(ge=0)
+  total_pages: int | None = Field(default=None, ge=0)
