@@ -130,8 +130,12 @@ def update_reading_progress(
   Оновлення поточного прогресу читання книги (у сторінках та відсотках)
   """
   try:
-    safe_current_page = payload.current_page
-    progress_percent = round((payload.current_page / payload.total_pages) * 100, 2)
+    if payload.total_pages is None or payload.total_pages <= 0:
+      progress_percent = 0.0
+      safe_current_page = max(payload.current_page, 0)
+    else:
+      safe_current_page = min(max(payload.current_page, 0), payload.total_pages)
+      progress_percent = round((safe_current_page / payload.total_pages) * 100, 2)
 
     cursor = conn.cursor()
     sql = """UPDATE reading

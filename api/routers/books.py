@@ -6,6 +6,8 @@ from conn import get_db
 from routers.user_token import get_current_user, optional_current_user
 from models import *
 from meilisearch import Client
+from meilisearch.errors import MeilisearchApiError
+import re
 import base64
 import os
 
@@ -62,19 +64,35 @@ async def index_books(
   except Exception as e:
     raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка переіндексації даних: " + str(e))
 
+def sanitize_meili_query(raw_query: str) -> str:
+  """Очищення пошукового запиту від керуючих символів та небезпечних спецсимволів."""
+  cleaned = re.sub(r"[\x00-\x1f\x7f;\\]", " ", raw_query)
+  cleaned = cleaned.replace('"', "").replace("'", "’")
+  cleaned = re.sub(r"\s+", " ", cleaned).strip()
+  return cleaned[:200]
+
 @app.get("/api/meilisearch/search")
-async def search_books(searchStr: str):
+async def search_books(searchStr: str = Query(default="", max_length=256)):
   """
   Пошук книг за назвою, автором та ключовими словами в контейнері Meilisearch
   """    
   print("Meilisearch: Search Books") 
+  sanitized_query = sanitize_meili_query(searchStr)
+  if not sanitized_query:
+    return []
+
   try:
-    meili = Client(os.getenv("MEILISEARCH_URL") , "MASTER_KEY")   
-    results = meili.index("books").search(searchStr, {
+    meili = Client(os.getenv("MEILISEARCH_URL"), os.getenv("MEILISEARCH_MASTER_KEY", "MASTER_KEY"))   
+    results = meili.index("books").search(sanitized_query, {
       "limit": 20,
       "attributesToHighlight": ["book_name", "key_words", "authors"]
       })
     return results["hits"]
+  except MeilisearchApiError as e:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail=f"Некоректний пошуковий запит: {e.message}"
+    )
   except Exception as e:
     raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Помилка пошуку даних: " + str(e))
 

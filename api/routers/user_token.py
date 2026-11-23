@@ -101,27 +101,37 @@ async def verify_jwt_token(token: str, request) -> str:
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не вдалося перевірити облікові дані",
         headers={"WWW-Authenticate": "Bearer"}
-    )    
+    )
+    expired_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token has expired",
+        headers={"WWW-Authenticate": "Bearer"}
+    )
     try:
-        if token == None:
-            raise InvalidTokenError        
+        if token is None:
+            raise credentials_exception
         SECRET_KEY = os.getenv("SECRET_KEY")
         payload = jwt.decode(token, SECRET_KEY, algorithms = [os.getenv("ALGORITHM")])
         username: str = payload.get("sub")
         if username is None:
-            raise InvalidTokenError
+            raise credentials_exception
         return username
     #  якщо токен прострочений
     except jwt.ExpiredSignatureError:
+        if not request or "refresh_token" not in request.cookies:
+            raise expired_exception
         # формуємо новий access_token на основі refresh_token
-        newToken = await refresh_tokens(request)
-        if newToken == None:
-            raise credentials_exception
+        try:
+            newToken = await refresh_tokens(request)
+        except HTTPException:
+            raise expired_exception
+        if newToken is None:
+            raise expired_exception
         # Розшифровуємо дані
         payload = jwt.decode(newToken.access_token, SECRET_KEY, algorithms = [os.getenv("ALGORITHM")])
         username = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            raise expired_exception
         return username
     except jwt.InvalidTokenError:
         raise credentials_exception
@@ -179,8 +189,8 @@ async def get_current_user(
     detail="Не вдалося перевірити облікові дані",
     headers={"WWW-Authenticate": "Bearer"}
   )
-  if token == None:
-    raise InvalidTokenError
+  if token is None:
+    raise credentials_exception
   username: str = await verify_jwt_token(token, request)
   tokenData = TokenData(username = username)
 
